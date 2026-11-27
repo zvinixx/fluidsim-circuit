@@ -375,3 +375,125 @@ def describe(path):
 ```
 
 ---
+
+## §7 — Formato binário completo
+
+Para quem precisar reimplementar tudo.
+
+### Camada 1: ofuscação
+
+```python
+plain = bytes(b ^ 0x9A for b in raw)
+```
+
+### Camada 2: tokens
+
+| Primeiro byte | Significado |
+|---|---|
+| `>= 0x80` | literal de `b - 0x80` bytes |
+| `< 0x80` | código de 16 bits, **big-endian** |
+
+Do código de 16 bits:
+
+```
+code       = (b0 << 8) | b1
+comprimento = (code >> SHIFT) + 1
+offset      = code & (W - 1)
+```
+
+| Comprimento | Token | Bytes |
+|---|---|---|
+| `1` | RLE (`valor` no byte seguinte, repetições = `offset`) | 3 |
+| `2` | comprimento estendido (tamanho real no byte seguinte) | 3 |
+| `>= 3` | cópia do ring buffer | 2 |
+
+> O caso `2` é a pegadinha: **não** é cópia de 2 bytes. Ignorar isso
+> dessincroniza o parser e "perde" o final do arquivo.
+
+### Camada 3: estrutura do documento
+
+```
+ENDPREVIEW
+BEGIN_FS          <- esquema hidráulico
+  GRAPHRECT O0 ...
+  S <prop> <tipo> <valor>
+  F <prop> <tipo> <valor>
+  D <valor>
+END_FS
+ENDCT
+BEGINDSD          <- escada elétrica / GRAFCET
+  DG ...
+  SYM ...
+ENDDSD
+```
+
+Formatos de linha:
+
+```
+" F %s x_pos I %ld"       " F %s y_pos I %ld"
+" F %s stroke I %ld"      " F %s length I %ld"
+" F %s f_offset_x I %ld"  " F %s f_offset_y I %ld"
+" F %s only_top_rule B %s" " F %s both_sides_rule B %s"
+" S %s B F", " D %ld"
+"DG %ld %ld %s ..."       "POS %04ld %04ld %lf 1"
+"PID %s", "CREATOR %s"
+"DSD %ld", "BEGINDSD", "ENDDSD"
+```
+
+### Biblioteca de símbolos
+
+`D:\Hydraulic\sym\<categoria>\<sub>\*.ct`, com `pos.txt` por pasta.
+
+Categorias principais:
+
+```
+sym/hyd/actuator/     cilindros (a1 = dupla ação)
+sym/hyd/valve/        válvulas
+sym/hyd/supply/       bomba, tanque, filtro, acumulador
+sym/hyd/sensor/       manômetro, pressostato
+sym/electr/switch/    chaves (Manually, Proximit, General)
+sym/electr/relay/     relés
+sym/electr/sensor/    sensores elétricos
+sym/electr/ladder/    contatos de escada
+sym/grafcet/          step, transition, action, sub, sync
+```
+
+---
+
+## §8 — Limites e por quê
+
+O `.ct` é LZ77 sem cabeçalho, multi-bloco. Escrever do zero exigiria
+reimplementar o compressor (`0x41A600` / `0x41A4E0` em `fl_sim_h.exe`) com
+sincronização perfeita do ring buffer em cada *flush* de bloco.
+
+Tentativas de regravar o texto completo produzem `Unknown file format` porque
+parte do conteúdo mora nos tokens de cópia (não nos literais).
+
+**Caminho para fechar a lacuna** (trabalho futuro):
+
+1. Depuração dinâmica: breakpoint em `0x41B8FD`, despejar `[0x5d1db0]`.
+2. Reimplementar o compressor e validar round-trip byte a byte.
+3. Automatizar a UI do FluidSIM (colar símbolos e salvar).
+
+Mapa de endereços úteis:
+
+| Endereço | Papel |
+|---|---|
+| `0x41AEC0` | aplica/remove XOR |
+| `0x41A600` | compressor |
+| `0x41A4E0` | busca de match LZ |
+| `0x41B3A8` | laço do descompressor |
+| `0x41B5F7` | leitura do código de 16 bits |
+| `0x41B740` | tratamento de `length == 1` |
+| `0x41B786` | cópia ring → saída |
+| `0x41B83D` | flush final |
+
+| Global | Nome |
+|---|---|
+| `0x5c544c` | chave XOR (0x9A) |
+| `0x5c5454` | `W` |
+| `0x5c5458` | `SHIFT` |
+| `0x5d1d98` | ring buffer |
+| `0x5d1db0` | saída |
+
+---
