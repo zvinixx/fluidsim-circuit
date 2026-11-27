@@ -497,3 +497,48 @@ Mapa de endereços úteis:
 | `0x5d1db0` | saída |
 
 ---
+
+## §9 — Frases para ativar a skill
+
+Basta pedir em linguagem natural. Exemplos que funcionam:
+
+### Criar
+
+- "Crie um circuito hidráulico com cilindro de dupla ação, válvula direcional
+  e bomba."
+- "Monte um projeto com pistão, filtro, válvula de retenção e pressão."
+- "Preciso de um circuito com dois cilindros em sequência."
+- "Faça um eletrohidráulico: cilindro com solenoide e botoeiras."
+- "Gere um projeto com cilindro e fim de curso."
+
+### Ajustar
+
+- "Use o circuito X como base e renomeie os componentes para português."
+- "Troque o nome do cilindro para 'Atuador de prensa'."
+- "Quero a versão com manômetro em vez de pressostato."
+
+### Verificar
+
+- "Valide o arquivo e me diga se abre."
+- "Liste os componentes do arquivo gerado."
+
+### Analisar
+
+- "Quais circuitos do catálogo têm cilindro e fim de curso?"
+- "Mostre os 5 mais parecidos com 'pistão com motor'."
+
+---
+
+## §10 — Checklist de entrega
+
+- [ ] pedido traduzido em componentes
+- [ ] base escolhida e justificada
+- [ ] `.ct` gerado na pasta do usuário
+- [ ] validação de estrutura passou
+- [ ] resumo do que o circuito tem
+- [ ] o que **não** foi incluído
+- [ ] instrução: **duplo clique no `.ct`**
+
+---
+
+MIT © zvinixx
