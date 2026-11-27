@@ -237,3 +237,141 @@ Existem 182 bases adicionais em `D:\Hydraulic\ct\`. Para descobrir o que cada
 uma tem, rode o script do §6 (`describe`).
 
 ---
+
+## §6 — Implementação de referência do codec
+
+Copie este arquivo como `ctcodec.py` ao lado do seu script. Sem dependências.
+
+```python
+#!/usr/bin/env python3
+"""Codec dos arquivos .ct do FluidSIM 4.
+
+Formato:
+  * todo o arquivo recebe XOR 0x9A
+  * depois disso e um fluxo LZ77:
+      byte >= 0x80 -> literal: comprimento = b - 0x80, seguido dos bytes
+      byte <  0x80 -> codigo de 16 bits (big-endian):
+            comprimento = (code >> SHIFT) + 1
+            offset      = code & (W - 1)
+            comprimento == 1 -> RLE (valor no byte seguinte; repeticoes = offset)
+            comprimento == 2 -> COMPRIMENTO ESTENDIDO (byte seguinte = tamanho)
+
+  Modo B (padrao): W = 2048, SHIFT = 11
+  Modo A:          W = 512,  SHIFT = 9
+
+Nao existe cabecalho: o fluxo comeca no byte 0.
+"""
+KEY = 0x9A
+
+
+def xor(data, key=KEY):
+    return bytes(b ^ key for b in data)
+
+
+def read(path):
+    with open(path, 'rb') as f:
+        return f.read()
+
+
+def write(path, data):
+    with open(path, 'wb') as f:
+        f.write(data)
+
+
+def stream_info(stream, shift=11, ring=2048):
+    """Lista de tokens com posicao e tamanho."""
+    mask = ring - 1
+    toks = []
+    i = 0
+    n = len(stream)
+    while i < n:
+        b = stream[i]
+        if b & 0x80:
+            cnt = b - 0x80
+            if i + 1 + cnt > n:
+                break
+            toks.append({'kind': 'lit', 'pos': i, 'size': 1 + cnt,
+                         'data': stream[i + 1:i + 1 + cnt]})
+            i += 1 + cnt
+            continue
+        if i + 2 > n:
+            break
+        code = (stream[i] << 8) | stream[i + 1]
+        length = (code >> shift) + 1
+        offset = code & mask
+        if length == 1:
+            if i + 3 > n:
+                break
+            toks.append({'kind': 'rle', 'pos': i, 'size': 3,
+                         'value': stream[i + 2], 'count': offset})
+            i += 3
+            continue
+        if length == 2:
+            if i + 3 > n:
+                break
+            toks.append({'kind': 'copy', 'pos': i, 'size': 3,
+                         'offset': offset, 'length': stream[i + 2],
+                         'extended': True})
+            i += 3
+            continue
+        toks.append({'kind': 'copy', 'pos': i, 'size': 2,
+                     'offset': offset, 'length': length})
+        i += 2
+    return toks
+
+
+def rebuild(stream, toks, replacements):
+    """Troca texto apenas nos literais; copias/RLE ficam intactas."""
+    out = bytearray()
+    hits = 0
+    for t in toks:
+        if t['kind'] == 'lit':
+            data = t['data']
+            for old, new in replacements:
+                if old in data:
+                    hits += data.count(old)
+                    data = data.replace(old, new)
+            out.append(0x80 + len(data))
+            out += data
+        else:
+            out += stream[t['pos']:t['pos'] + t['size']]
+    return bytes(out), hits
+
+
+def patch_text(src, dst, replacements):
+    """Substitui textos. `replacements` = [(antigo, novo), ...]."""
+    if isinstance(replacements, dict):
+        replacements = list(replacements.items())
+    pairs = [(o.encode('latin1'), n.encode('latin1')) for o, n in replacements]
+    raw = xor(read(src))
+    toks = stream_info(raw)
+    new_stream, hits = rebuild(raw, toks, pairs)
+    if hits:
+        write(dst, xor(new_stream))
+    return hits
+
+
+def literals(path):
+    return [t['data'] for t in stream_info(xor(read(path)))
+            if t['kind'] == 'lit']
+
+
+def strings(path, minlen=4):
+    out = []
+    for chunk in literals(path):
+        txt = ''.join(chr(c) if 32 <= c < 127 else ' ' for c in chunk)
+        out.extend(w for w in txt.split() if len(w) >= minlen)
+    return out
+
+
+def describe(path):
+    raw = xor(read(path))
+    toks = stream_info(raw)
+    counts = {}
+    for t in toks:
+        counts[t['kind']] = counts.get(t['kind'], 0) + 1
+    return {'arquivo': path, 'tamanho': len(raw), 'tokens': counts,
+            'coberto': sum(t['size'] for t in toks) == len(raw)}
+```
+
+---
