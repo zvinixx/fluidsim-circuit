@@ -1,69 +1,59 @@
-# FluidSIM Circuit Skill
+# FluidSIM Circuit Toolkit
 
 <p align="center">
   <img src="https://img.shields.io/badge/FluidSIM-4.x%20Hydraulics-0a7ea4?style=for-the-badge" alt="FluidSIM 4.x">
   <img src="https://img.shields.io/badge/format-.ct-2ea44f?style=for-the-badge" alt=".ct">
   <img src="https://img.shields.io/badge/Agent%20Skills-compatible-6f42c1?style=for-the-badge" alt="Agent Skills">
-  <img src="https://img.shields.io/badge/bases%20validated-201%2F201-brightgreen?style=for-the-badge" alt="201/201">
+  <img src="https://img.shields.io/badge/container-fully%20mapped-brightgreen?style=for-the-badge" alt="container mapped">
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/github/license/zvinixx/fluidsim-circuit?style=flat-square" alt="License">
   <img src="https://img.shields.io/github/v/release/zvinixx/fluidsim-circuit?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/last-commit/zvinixx/fluidsim-circuit?style=flat-square" alt="Last commit">
-  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" alt="PRs welcome">
 </p>
 
 <p align="center">
-  <b>Generate FluidSIM hydraulic and electro-hydraulic circuits as ready-to-open <code>.ct</code> files — straight from a natural-language request.</b>
+  <b>Reverse-engineered documentation and tooling for the FluidSIM 4 <code>.ct</code> circuit container — inspect circuits, rename labels without breaking them, and validate whether a file really opens.</b>
 </p>
 
 ---
 
-## What it does
+## What this is
 
-Ask for a circuit. Get a `.ct` file you can double-click.
+A complete technical dossier on the `.ct` file format used by **FluidSIM 4 Hydraulics**
+(Festo Didactic / Art Systems), plus a working codec and an automated validator.
 
-```
-"Mount a hydraulic circuit with a double-acting cylinder, a directional valve and a pump."
-```
-
-```diff
-+ Projeto.ct   generated
-+ double-click  →  circuit opens in FluidSIM, fully editable and simulatable
-```
+The container is fully understood. The **payload** — how FluidSIM serialises a
+circuit into that container — is understood structurally but **not yet
+reproducible byte-for-byte**, which is why this project documents the boundary
+instead of pretending to cross it.
 
 | Capability | Status |
 | :--- | :---: |
-| Cylinder, valve, pump, tank, filter | ✅ |
-| Cylinder with **limit switches / position sensors** | ✅ |
-| Hydraulic motor | ✅ |
-| Electro-hydraulic with solenoids and buttons | ✅ |
-| Ladder logic, relays, indicator lamps | ✅ |
-| GRAFCET / step sequences | ✅ |
-| Rename components and labels | ✅ |
-| Adjust physical values (stroke, mass) | ⚠️ validate afterwards |
-| Draw a circuit from scratch | ❌ not possible today |
+| Decode the container (obfuscation + LZ token stream) | ✅ complete |
+| Read components, properties and labels from a `.ct` | ✅ works |
+| Rename labels losslessly (same byte length) | ✅ works, verified visually |
+| Detect whether a generated file actually opens | ✅ automated |
+| Re-encode the container from literal tokens | ✅ accepted by the app |
+| **Author a circuit from scratch** | ❌ **not yet possible** |
+| **Insert a new component into an existing circuit** | ❌ **not yet possible** |
 
-> **Read this first.** The `.ct` format is a compressed, obfuscated binary. Lossless
-> re-encoding from scratch is not supported by this skill — it builds on **real
-> base circuits**, which is what guarantees the file actually opens. Details in
-> [Limits & why](#limits--why).
+> This is deliberate. A tool that silently emits files FluidSIM rejects is worse
+> than one that explains precisely where the wall is. Section
+> [Where the boundary is](#where-the-boundary-is) has the full evidence.
 
 ---
 
 ## Install with one prompt
 
-Open your AI coding agent and paste this:
+Paste this into any AI coding agent:
 
 ```text
 Read https://raw.githubusercontent.com/zvinixx/fluidsim-circuit/main/SKILL.md
 and install it as a skill named "fluidsim-circuit" in my global skills folder.
-Then confirm it is installed and show me the three most useful prompts to use it.
+Then confirm it is installed and summarise what it can and cannot do.
 ```
-
-That's it. The agent fetches the skill, drops it in the right folder for itself,
-and reports back.
 
 <details>
 <summary><b>Where the skill lands (per agent)</b></summary>
@@ -71,9 +61,9 @@ and reports back.
 | Agent | Global folder | Project folder |
 | :--- | :--- | :--- |
 | Claude Code | `~/.claude/skills/` | `.claude/skills/` |
-| Codex / Cursor / Gemini CLI / others following the Agent Skills standard | `~/.agents/skills/` | `.agents/skills/` |
+| Codex / Cursor / Gemini CLI / any Agent Skills client | `~/.agents/skills/` | `.agents/skills/` |
 
-The layout is always the same:
+Layout:
 
 ```text
 <skills-folder>/
@@ -81,8 +71,8 @@ The layout is always the same:
     └── SKILL.md
 ```
 
-Anything that reads a `SKILL.md` with YAML frontmatter works — the skill has no
-runtime dependency on a specific product.
+Anything that reads a `SKILL.md` with YAML frontmatter works. No runtime
+dependency on a specific vendor.
 
 </details>
 
@@ -95,28 +85,18 @@ mkdir -p ~/.agents/skills
 cp -r fluidsim-circuit ~/.agents/skills/fluidsim-circuit
 ```
 
-Or simply paste the content of `SKILL.md` at the start of a chat session — it
-works as a mode, with no file installation at all.
+Or paste the content of `SKILL.md` at the start of a chat — it works as a mode
+with no file installation at all.
 
 </details>
 
 <details>
 <summary><b>Verify the installation</b></summary>
 
-Ask the agent:
-
 ```text
 List your available skills. Is "fluidsim-circuit" there?
+Then decode a .ct file and show me the component properties it contains.
 ```
-
-Then, as a smoke test:
-
-```text
-Which circuits in the catalog have a cylinder and a limit switch?
-```
-
-A correct answer lists bases such as `ct/tp601/TP601_11b.ct` and
-`ct/Shows/dida_173d.ct`.
 
 </details>
 
@@ -126,263 +106,214 @@ A correct answer lists bases such as `ct/tp601/TP601_11b.ct` and
 
 | Item | Why |
 | :--- | :--- |
-| **FluidSIM 4.x Hydraulics** installed | the skill references the real component library in `D:\Hydraulic\` |
-| Python 3.8+ *(optional)* | only to run the reference codec; the skill itself is plain Markdown |
-| An AI agent that reads `SKILL.md` | any CLI or IDE extension following the Agent Skills standard |
+| FluidSIM 4.x Hydraulics | the codec only needs the files; the validator opens the app |
+| Python 3.8+ | runs the reference codec (only needed for the CLI workflow) |
+| Windows (optional) | only for the automated open-validator, which drives window handles |
 
-> Different installation path? Adjust `D:\Hydraulic\` in `SKILL.md` — it is the
-> only machine-specific detail.
+Adjust `D:\Hydraulic\` in `SKILL.md` if FluidSIM lives elsewhere — it is the
+single machine-specific detail.
 
 ---
 
 ## Usage
 
-### Recipe — piston + pump + filter
+### Inspect a circuit
 
-```text
-Build a hydraulic circuit with a double-acting cylinder, a pump, a filter and a
-directional valve.
+```python
+import ctcodec
+
+print(ctcodec.describe(r'D:\Hydraulic\sym\hyd\actuator\a1.ct'))
+for s in ctcodec.strings(r'D:\Hydraulic\sym\hyd\actuator\a1.ct', 5):
+    print(s)
 ```
 
-The skill picks `ct/Shows/dida_042.ct`, copies it and delivers `Projeto.ct`.
+Output includes `BEGIN_FS`, `ENDCT`, `dxf_prim_list`, `Hyd.Actuator`,
+`DAMPING_ADJ_L`, `only_top_rule`, `x_pos`, `stroke`, `gate1` and the component
+description.
 
-### Recipe — piston with limit switches
+### Rename a component safely
 
-```text
-I need a cylinder with limit switches to detect the end of stroke.
+```python
+import ctcodec
+
+hits = ctcodec.patch_text(
+    'entrada.ct', 'saida.ct',
+    [('Zylinder, doppeltwirkend', 'Cilindro principal     ')])
+print('substituições:', hits)
 ```
 
-The skill picks `ct/tp601/TP601_11b.ct` — one cylinder, two limit switches
-(`IS1`/`IS2`) wired into the ladder — and validates the output.
+The replacement is padded to the **exact same byte length**. Verified: the
+resulting file opens in FluidSIM with the cylinder still drawn correctly.
 
-### Recipe — electro-hydraulic
+### Validate
 
-```text
-Make an electro-hydraulic circuit: cylinder driven by a solenoid with push buttons.
+```powershell
+powershell -File oracle.ps1 -CtPath saida.ct
+# ABRIU | VAZIO | ERRO
 ```
 
-Base: `ct/tp601/TP601_08b.ct` → hydraulics + ladder + state table in a single file.
+Structural validation alone is not enough — a truncated file passes the token
+check and still opens as an empty document. Only the application can arbitrate.
 
-### Recipe — rename components
+---
+
+## Where the boundary is
+
+### Proven facts
+
+**1. Obfuscation layer.** Every byte is XOR'd with `0x9A`. Handler at
+`0x41AEC0`, key stored at `0x5c544c`, initialised at `0x41A76C`.
+
+**2. No header.** The token stream starts at byte 0. Proof by controlled
+mutation: keeping the first 3 bytes intact and zeroing the rest produces
+`Unerwartetes Dateiformat`; keeping 6 or 16 bytes and zeroing the rest also
+fails. There is no field the app needs before the stream.
+
+**3. Token grammar.** Verified exhaustively — the parser consumes 100% of the
+bytes in all 201 sampled files, with zero desync.
 
 ```text
-Use TP601_11b as base and rename the cylinder to "Press actuator".
+byte >= 0x80   →  literal, length = b - 0x80, followed by that many bytes
+byte <  0x80   →  16-bit big-endian code
+                  length = (code >> SHIFT) + 1
+                  offset = code & (W - 1)
+
+length == 1    →  RLE: value in next byte, repetitions = offset
+length == 2    →  extended length: real length in next byte (3-byte token)
+length >= 3    →  copy from ring buffer
 ```
 
-Renames are padded or truncated to the **same byte length**, which is what keeps
-internal offsets valid.
+Mode B (default): `W = 2048`, `SHIFT = 11`, `MAXLEN = 16`.
+Mode A: `W = 512`, `SHIFT = 9`, `MAXLEN = 64`.
 
-### Phrases that work well
+The ring is allocated with `0x7FF8` bytes and the write pointer flushes when
+`lp + len >= 0x7FF8`.
 
-| Goal | Prompt |
+The extended-length escape is the subtle one: treating `length == 2` as an
+ordinary two-byte copy silently truncates the remainder of the file.
+
+**4. Document model.** The payload is block-structured text:
+
+```text
+ENDPREVIEW
+BEGIN_FS     … hydraulic sheet  … END_FS
+ENDCT
+BEGINDSD    … ladder / GRAFCET … ENDDSD
+```
+
+Property lines follow fixed formats confirmed against the format strings inside
+the executable: `S %s B F`, `F %s x_pos I %ld`, `F %s stroke I %ld`,
+`F %s MASS I %ld`, `DG %ld %ld %s …`, `POS %04ld %04ld %lf 1`.
+
+### The remaining gap
+
+Decoding recovers most of the payload — section headers, property names,
+component descriptions, coordinates — but not byte-exactly: regions where the
+ring buffer recycled come out corrupted. The practical consequence:
+
+| Experiment | Result |
 | :--- | :--- |
-| Create | *"Create a circuit with two cylinders working in sequence."* |
-| Adjust | *"Use circuit X as base and translate the labels to English."* |
-| Verify | *"Validate the file and tell me whether it opens."* |
-| Analyse | *"Show the five bases closest to 'piston with motor'."* |
+| Copy a real `.ct` | opens with content |
+| Rename a label, same length | opens with content, drawing intact |
+| Decode, re-encode using only literal tokens | opens **empty** |
+| Assemble a document from scratch | opens **empty** |
+
+Row three is the important one: it proves the **container encoding is correct**
+(the app accepts it) while the **payload is incomplete**. Authoring a circuit
+requires the exact plaintext, which in turn requires the compressor to be
+reproduced or the decompressed buffer to be captured.
+
+### How to close it
+
+1. **Dynamic capture** — run `fl_sim_h.exe` under a debugger, break at
+   `0x41B8FD` (immediately after decompression) and dump the output buffer at
+   `[0x5d1db0]`. That yields the exact plaintext, with no inference.
+2. **Reimplement the compressor** (`0x41A600` / `0x41A4E0`) and verify a
+   byte-exact round-trip against that plaintext.
+3. With a verified round-trip, authoring and component insertion become
+   straightforward.
 
 ---
 
-## How to place a piston (manual reference)
+## How this was reached
 
-The skill does this for you, but here is what it looks like inside FluidSIM:
+**Stage 1 — Container identification.** 733 `.ct` files, no recognisable
+header. A byte-frequency histogram over the corpus was flat but shifted by a
+constant, which pointed to single-byte XOR. Applying `0x9A` to the whole file
+produced structured data.
 
-1. **Library → Hydraulics → Actuators** → drag *Double-acting cylinder*.
-2. Right-click → **Properties**:
+**Stage 2 — Grammar recovery.** Static analysis located the codec pair and its
+global state: the key, ring size, shift packing length and offset, maximum
+match length. The grammar was reconstructed from the decoder's control flow,
+then validated statistically by requiring the parser to consume every byte of
+every file. Four token classes emerged, two of them escapes keyed on the length
+field.
 
-   | Field | Meaning |
-   | :--- | :--- |
-   | `x_pos` / `y_pos` | position on the sheet |
-   | `stroke` | stroke in mm (default 200) |
-   | `length` | drawn length |
-   | `MASS` | load mass (kg) |
-   | `DAMPING_ADJ_L` | damping |
+**Stage 3 — Document model.** Decoded payloads turned out to be block-structured
+text. Line formats were cross-checked field by field against the format strings
+embedded in the executable.
 
-3. **Library → Valves → Directional valve** → connect A/B to the cylinder, P/T
-   to pump and tank.
+**Stage 4 — The wrong turn.** An early validator read the window title and
+reported success when it saw `FluidSIM-H`. That title appears even when the
+document fails to load, so fabricated files looked valid. Correcting the
+validator — enumerating MDI child windows instead of the frame — invalidated
+several earlier conclusions and is the reason this document distinguishes
+*accepted by the container parser* from *loaded as a circuit*.
 
-In the `.ct` file each of these becomes a property line:
-
-```text
- F x_pos I 120
- F y_pos I 240
- F stroke I 200
- F MASS I 9
-```
-
-## How to place a limit switch
-
-1. Open the circuit that already contains the cylinder.
-2. **Library → Electrical → Switches → Proximity switch**.
-3. Drag the sensor **onto the cylinder rod** — it snaps and starts sensing.
-4. Wire contact **13/14** to the relay coil or the logic input.
-5. Repeat on the opposite end for the second limit switch.
-
-In the file it appears as:
-
-```text
- S ProximitySwitch B F
- F pos_l_<n> I <coordinate>
- F pos_r_<n> I <coordinate>
-```
-
-and, in the ladder, as contact `IS1` / `IS2` on terminals 13/14.
-
----
-
-## Catalog
-
-201 bases validated by opening each generated file in FluidSIM. Paths relative to
-`D:\Hydraulic\`.
-
-| Base | Components |
-| :--- | :--- |
-| `ct/tp601/TP601_11b.ct` | cylinder, directional valve, **limit switch**, solenoid, pump |
-| `ct/Shows/dida_173d.ct` | 2 cylinders, **limit switch**, pump, check valve, pressure valve |
-| `ct/tp501/TP501_20.ct` | cylinder, **limit switch**, pump, check valve |
-| `ct/tp701/TP701_09.ct` | cylinder, **limit switch**, filter |
-| `ct/tp602/TP602_01.ct` | cylinder, **limit switch**, tank, lamp |
-| `ct/Grafcet18.ct` | GRAFCET, cylinder, **limit switch** |
-| `ct/Shows/dida_042.ct` | cylinder, directional valve, pump, filter |
-| `ct/Shows/dida_037.ct` | cylinder, directional valve, pump, tank |
-| `ct/tp601/TP601_08b.ct` | cylinder, solenoid, pump, ladder + state table |
-| `ct/tp502/TP502_01.ct` | hydraulic motor, directional valve, pump |
-| `ct/tp502/TP502_05a.ct` | cylinder, throttle (speed control) |
-| `ct/tp502/TP502_10.ct` | two cylinders + state diagram |
-| `ct/demo_02.ct` | basic cylinder with manual valve |
-
-The full 201-entry table lives in [`SKILL.md`](SKILL.md) §7.
-
----
-
-## Limits & why
-
-The `.ct` container is a **block-oriented LZ77 stream under a single-byte XOR**.
-There is no magic header and no uncompressed fallback, so writing a circuit from
-scratch would require reproducing the vendor's compressor, including its ring-buffer
-resynchronisation at every block flush.
-
-What that means in practice:
-
-| Scenario | Result |
-| :--- | :--- |
-| Copy a real base and rename labels | ✅ opens and simulates |
-| Rebuild the full text with literal tokens only | ❌ `Unknown file format` |
-| Add a component the base does not have | ❌ not implemented |
-
-The skill is therefore honest by design: it selects the closest real base and
-tells you what is missing instead of emitting a file that will be rejected.
-
-**Path to close the gap** — the remaining work is documented in `SKILL.md` §8:
-
-1. Dynamic analysis: breakpoint on the decompressor epilogue, dump the output buffer.
-2. Reimplement the compressor and validate a byte-exact round-trip.
-3. Automate the host application UI (paste symbols, save).
-
----
-
-## How this skill was built
-
-The project started from a single question — *can a description become a finished,
-double-clickable circuit file?* — and proceeded in five stages.
-
-### 1. Container identification
-
-A sample of 733 `.ct` files showed no recognisable header. Frequency analysis over
-the full corpus revealed a flat single-byte distribution shifted by a constant:
-every file is XOR-obfuscated with `0x9A`. Applied to the whole file, the payload
-turned into a structured byte stream.
-
-### 2. Grammar recovery
-
-Static analysis of the host executable located the codec pair and its global state:
-the XOR key, the ring size, the shift used to pack length and offset, and the
-maximum match length. The token grammar was reconstructed from the decoder control
-flow and then **verified statistically**: the reconstructed parser consumes every
-byte of all sampled files without desynchronising.
-
-Three token classes emerged: literal runs, ring-buffer copies, and two escapes keyed
-on the length field — a run-length form and an extended-length form. The second
-escape was the subtle one: treating it as an ordinary copy silently truncates the
-tail of the file, and fixing it moved validation from 195/201 to **201/201**.
-
-### 3. Document model
-
-With the stream decoded, the payload proved to be block-structured text: an
-overview block, a hydraulic sheet, and an electrical/GRAFCET sheet, each with
-`S`/`F`/`D` property lines. Line formats were cross-checked against the format
-strings embedded in the executable, which matched field for field.
-
-### 4. Base-circuit strategy
-
-Because lossless re-encoding was not reproducible, the approach shifted to
-**composition from real circuits**: index every shipped circuit by the components
-it contains, rank candidates against the request, copy the winner, and apply
-same-length label substitutions so internal offsets remain valid.
-
-### 5. Validation loop
-
-Every candidate was checked by actually opening the generated file in FluidSIM,
-reading the window title, and comparing against the expected circuit name. This
-loop is what turned a plausible theory into a verified pipeline — and what exposed
-the extended-length bug.
+**Stage 5 — Establishing the boundary.** Controlled mutation experiments
+(truncate, zero ranges, shuffle, re-encode) mapped exactly which failures the
+application tolerates and which it rejects. That is what the
+`Where the boundary is` section reports.
 
 ---
 
 ## Technical reference
 
 <details>
-<summary><b>Format at a glance</b></summary>
-
-```text
-file
- └─ XOR 0x9A  (whole file)
-     └─ token stream
-         ├─ literal      b >= 0x80          → b - 0x80 bytes follow
-         ├─ copy         b <  0x80, len >= 3 → 2 bytes, big-endian
-         ├─ RLE          len == 1           → 3 bytes (value follows)
-         └─ extended     len == 2           → 3 bytes (real length follows)
-
- code      = (b0 << 8) | b1
- length    = (code >> SHIFT) + 1
- offset    = code & (W - 1)
-
- Mode B (default): W = 2048, SHIFT = 11
- Mode A:           W =  512, SHIFT =  9
-```
-
-Document sections:
-
-```text
-ENDPREVIEW
-BEGIN_FS   … hydraulic sheet … END_FS
-ENDCT
-BEGINDSD  … ladder / GRAFCET … ENDDSD
-```
-
-</details>
-
-<details>
 <summary><b>Executable map</b></summary>
 
 | Address | Role |
 | :--- | :--- |
-| `0x41AEC0` | XOR apply/remove |
+| `0x41AEC0` | XOR apply / remove |
 | `0x41A600` | compressor entry |
 | `0x41A4E0` | LZ match search |
+| `0x41AF80` | decompressor entry |
 | `0x41B3A8` | decompressor loop |
 | `0x41B5F7` | 16-bit code read |
 | `0x41B740` | `length == 1` branch (RLE) |
-| `0x41B786` | ring → output copy |
+| `0x41B786` | ring to output copy |
 | `0x41B83D` | final flush |
+| `0x4C8450` | decompression wrapper |
 
 | Global | Meaning |
 | :--- | :--- |
 | `0x5c544c` | XOR key (`0x9A`) |
+| `0x5c5450` | mode (0 = B/2048, ≠0 = A/512) |
 | `0x5c5454` | ring size `W` |
+| `0x5c5456` | `MAXLEN` (64 in A, 16 in B) |
 | `0x5c5458` | shift |
-| `0x5d1d98` | ring buffer |
+| `0x5d1d94` | input buffer |
+| `0x5d1d98` | ring buffer (`0x7FF8` bytes) |
+| `0x5d1d9c` | write pointer `lp` |
 | `0x5d1db0` | output buffer |
+
+</details>
+
+<details>
+<summary><b>Property names</b></summary>
+
+| Property | Meaning |
+| :--- | :--- |
+| `x_pos` / `y_pos` | symbol position on the sheet |
+| `stroke` | cylinder stroke (mm) |
+| `length` | drawn length |
+| `MASS` | load mass (kg) |
+| `DAMPING_ADJ_L` | damping |
+| `only_top_rule` / `both_sides_rule` | drawing rules |
+| `f_offset_x` / `f_offset_y` | label offset |
+| `pos_l_<n>` / `pos_r_<n>` | limit-switch position |
+| `sig_color` | signal colour |
+| `PISTON_COUNT`, `PISTON_R`, `HUB` | cylinder geometry |
 
 </details>
 
@@ -390,11 +321,11 @@ BEGINDSD  … ladder / GRAFCET … ENDDSD
 <summary><b>Symbol library layout</b></summary>
 
 ```text
-sym/hyd/actuator/    cylinders   (a1 = double acting)
+sym/hyd/actuator/    cylinders  (a1.ct = double acting)
 sym/hyd/valve/       valves
 sym/hyd/supply/      pump, tank, filter, accumulator
 sym/hyd/sensor/      manometer, pressure switch
-sym/electr/switch/   switches  (Manually, Proximit, General)
+sym/electr/switch/   switches (Manually, Proximit, General)
 sym/electr/relay/    relays
 sym/electr/ladder/   ladder contacts
 sym/grafcet/         step, transition, action, sub, sync
@@ -408,28 +339,27 @@ sym/grafcet/         step, transition, action, sub, sync
 
 ```text
 fluidsim-circuit/
-├── SKILL.md      complete skill: workflow, catalog, reference codec, format spec
+├── SKILL.md      agent skill: workflow, codec, format spec, validator
 ├── README.md     this document
 └── LICENSE       MIT
 ```
-
-Two files, no prototypes, no fixtures.
 
 ---
 
 ## Contributing
 
-Contributions are welcome, especially:
+The highest-value contribution is a captured plaintext of any `.ct` (stage 1 of
+[How to close it](#how-to-close-it)). With one sample, the compressor can be
+validated and the authoring limitation disappears.
 
-- new **validated** base circuits (with the components you verified visually);
-- support for adding components to an existing circuit;
-- a byte-exact compressor, which would remove the base-circuit limitation entirely.
+Also welcome: additional property-name mappings, and reports of files whose
+structure does not match the documented grammar.
 
-Please open one pull request per feature so each change can be reviewed on its own.
+Please open one pull request per feature.
 
 ## Credits
 
-Reverse engineering, skill design and implementation: **[zvinixx](https://github.com/zvinixx)**.
+Reverse engineering, tooling and documentation: **[zvinixx](https://github.com/zvinixx)**.
 
 FluidSIM is a product of Festo Didactic and Art Systems. This project is
 independent and unaffiliated; it contains no vendor code or assets, only

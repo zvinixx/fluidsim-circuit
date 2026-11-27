@@ -1,266 +1,187 @@
 ---
 name: fluidsim-circuit
-description: "Builds FluidSIM 4 (Festo) hydraulic and electro-hydraulic circuit projects and delivers a ready-to-open .ct file, without launching the application. Use when the request mentions 'FluidSIM circuit', '.ct file', 'hydraulic project', 'build a piston', 'cylinder with directional valve', 'limit switch', 'position sensor on a cylinder', 'electro-hydraulic circuit with solenoid', 'GRAFCET', 'edit a .ct' or 'rename circuit components'."
+description: "Analyse, validate and safely edit FluidSIM 4 (Festo) .ct circuit files: decode the container, inspect components and properties, rename labels losslessly, and verify whether a file still opens in FluidSIM. Use when the request mentions 'FluidSIM', '.ct file', 'hydraulic circuit file', 'inspect a circuit', 'rename a circuit component', 'validate a .ct' or 'why does FluidSIM say unknown file format'."
 license: MIT
 metadata:
   author: zvinixx
-  version: "1.0.0"
+  version: "2.0.0"
   fluid_sim: "4.x Hydraulics"
 ---
 
-# Skill: circuitos FluidSIM `.ct`
+# Skill: FluidSIM `.ct` — análise, edição segura e validação
 
-Monta projetos hidráulicos e eletrohidráulicos do **FluidSIM 4** gerando o
-arquivo `.ct` final — sem abrir o programa.
+Ferramentas e conhecimento sobre o formato `.ct` do **FluidSIM 4**, com uma
+regra de honestidade acima de tudo: **verificar antes de afirmar**.
 
-**Autor original da engenharia reversa e da skill: [zvinixx](https://github.com/zvinixx).**
-
----
-
-## Regra número um (leia antes de tudo)
-
-O `.ct` é um formato **binário comprimido**, e a compressão não pode ser
-reescrita do zero. Por isso esta skill trabalha **a partir de circuitos-base
-reais**: ela escolhe o circuito mais próximo do pedido, copia e ajusta.
-
-| Você quer… | Dá? |
-|---|---|
-| Circuito com pistão, válvula, bomba, filtro | ✅ |
-| Pistão com fim de curso | ✅ (bases prontas) |
-| Motor hidráulico | ✅ |
-| Escada elétrica, solenoide, relé | ✅ |
-| GRAFCET / sequência | ✅ |
-| Renomear componentes | ✅ |
-| Mudar valores físicos (curso, massa) | ⚠️ funciona, validar depois |
-| Desenhar circuito novo do zero | ❌ **não é possível** |
-
-Se o pedido não existir no catálogo, **diga o que falta**. Nunca entregue um
-arquivo gerado do zero: o FluidSIM rejeita com `Unknown file format`.
+**Autor da engenharia reversa: [zvinixx](https://github.com/zvinixx).**
 
 ---
 
-## Passo 1 — Traduza o pedido em componentes
+## Leia isto primeiro: o que é possível hoje
 
-| O usuário fala… | Componente |
-|---|---|
-| pistão, cilindro que abre e fecha, atuador | `cilindro` |
-| válvula direcional, comando, 4/2, 4/3, 5/2 | `valvula_dir` |
-| bomba, unidade hidráulica, fonte de pressão | `bomba` |
-| tanque, reservatório | `reservatorio` |
-| filtro | `filtro` |
-| válvula de retenção, anti-retorno | `valvula_ret` |
-| válvula de pressão, alívio, redutora | `valvula_press` |
-| estrangulamento, controle de vazão | `estrangul` |
-| acumulador | `acumulador` |
-| manômetro | `manometro` |
-| pressostato | `pressostato` |
-| motor hidráulico | `motor` |
-| **fim de curso, sensor indutivo, fim de posição, sensor de proximidade** | `fim_de_curso` |
-| solenoide, eletroválvula, bobina | `solenoide` |
-| botoeira, chave, botão | `botoeira` |
-| relé, contator | `rele` |
-| lâmpada, sinaleiro | `lampada` |
-| sequência, passo a passo, GRAFCET | `grafcet` |
-
----
-
-## Passo 2 — Escolha o circuito-base
-
-Consulte a tabela completa no §7. Bases mais usadas:
-
-| Base | Componentes | Observação |
+| Objetivo | Estado real | Evidência |
 |---|---|---|
-| `ct/demo_02.ct` | cilindro, valvula_dir, reservatorio | pistão básico com válvula manual |
-| `ct/Shows/dida_042.ct` | cilindro, valvula_dir, bomba, filtro | pistão + bomba + filtro |
-| `ct/Shows/dida_037.ct` | cilindro, valvula_dir, bomba, reservatorio | pistão + unidade completa |
-| `ct/tp601/TP601_11b.ct` | cilindro, valvula_dir, fim_de_curso, solenoide, bomba | **1 cilindro + 2 fins de curso + escada** |
-| `ct/Shows/dida_173d.ct` | cilindro, valvula_dir, fim_de_curso, bomba, valvula_ret, valvula_press | **2 cilindros + fim de curso + pressão** |
-| `ct/tp501/TP501_20.ct` | cilindro, valvula_dir, fim_de_curso, bomba, valvula_ret | cilindro + fim de curso + bomba |
-| `ct/tp701/TP701_09.ct` | cilindro, valvula_dir, fim_de_curso, filtro | cilindro + fim de curso + filtro |
-| `ct/tp602/TP602_01.ct` | cilindro, valvula_dir, fim_de_curso, reservatorio, lampada | cilindro + fim de curso + lâmpada |
-| `ct/tp602/TP602_06.ct` | cilindro, … fim_de_curso, bomba, valvula_press, lampada | completo + sinaleiro |
-| `ct/tp601/TP601_08b.ct` | cilindro, valvula_dir, solenoide, bomba | **eletrohidráulico com escada e tabela de estados** |
-| `ct/tp601/TP601_01b.ct` | cilindro, valvula_dir, solenoide, botoeira | solenoide + botoeira |
-| `ct/Shows/dida_070.ct` | motor, valvula_dir, valvula_ret | motor hidráulico |
-| `ct/tp502/TP502_01.ct` | motor, valvula_dir, bomba | motor + bomba |
-| `ct/Grafcet18.ct` | cilindro, valvula_dir, fim_de_curso, grafcet | **GRAFCET + cilindro + fim de curso** |
-| `ct/tp502/TP502_05a.ct` | cilindro, valvula_dir, estrangul | controle de velocidade |
-| `ct/tp502/TP502_10.ct` | cilindro, valvula_dir, bomba, reservatorio | dois cilindros + diagrama |
+| Inspecionar um `.ct` (componentes, propriedades, textos) | ✅ funciona | parser consome 100% dos bytes |
+| Renomear rótulos sem corromper | ✅ funciona | abre no FluidSIM com o desenho intacto |
+| Validar se um `.ct` abre | ✅ funciona | oráculo por janela MDI |
+| Trocar a base por outra do catálogo | ✅ funciona | 201/201 abrem |
+| **Escrever um `.ct` do zero** | ❌ **não funciona** | ver §5 |
+| **Inserir um componente novo num circuito** | ❌ **não funciona** | ver §5 |
+
+> Se o pedido for "crie um circuito novo do zero", a resposta correta é:
+> **não é possível com o conhecimento atual**, e explicar o motivo (§5).
+> Não invente um arquivo que o FluidSIM vai rejeitar.
 
 ---
 
-## Passo 3 — Gere o arquivo
+## §1 — Onde ficam os arquivos
 
-O arquivo `.ct` é montado **copiando a base** e renomeando rótulos quando
-necessário. Implementação de referência (Python 3, sem dependências):
-
-```python
-# build.py  —  gera um .ct a partir de uma base
-import shutil, sys
-
-BASE = r'D:\Hydraulic\ct\Shows\dida_042.ct'   # circuito escolhido
-DEST = 'Projeto.ct'
-
-shutil.copyfile(BASE, DEST)
-print('gerado:', DEST)
+```
+D:\Hydraulic\
+├── ct\        circuitos de exemplo (tp501, tp502, tp601, tp602, Shows, ...)
+├── sym\       biblioteca de símbolos
+│   ├── hyd\actuator\     cilindros (a1.ct = dupla ação)
+│   ├── hyd\valve\        válvulas
+│   ├── hyd\supply\       bomba, tanque, filtro, acumulador
+│   ├── hyd\sensor\       manômetro, pressostato
+│   ├── electr\switch\    chaves (Manually, Proximit, General)
+│   ├── electr\relay\     relés
+│   └── grafcet\          step, transition, action
+├── bin\fl_sim_h.exe      o aplicativo
+└── misc\                 configurações
 ```
 
-A cópia já é um `.ct` válido — **duplo clique abre**.
+Cada pasta tem um `pos.txt` descrevendo a grade da biblioteca.
 
-### Renomear um componente
+---
 
-Trocas de texto seguem a regra do **mesmo comprimento** (complete com espaços):
+## §2 — Inspecionar um arquivo
+
+Decodifique e leia as propriedades. Implementação completa em §6.
 
 ```python
-import ctcodec  # ver §6
+import ctcodec
+info = ctcodec.describe('circuito.ct')
+print(info['tokens'], info['coberto'])
+for s in ctcodec.strings('circuito.ct', 5):
+    print(s)
+```
 
+O que sai: `BEGIN_FS`, `ENDCT`, `BEGINDSD`, `GRAPHRECT`, `description_FEST`,
+`Hyd.Actuator`, `DAMPING_ADJ_L`, `x_pos`, `stroke`, `gate1`, etc.
+
+**Nomes de propriedade que importam** (extraídos das *format strings* do
+executável):
+
+| Propriedade | Significado |
+|---|---|
+| `x_pos` / `y_pos` | posição do símbolo na folha |
+| `stroke` | curso do cilindro (mm) |
+| `length` | comprimento desenhado |
+| `MASS` | massa da carga (kg) |
+| `DAMPING_ADJ_L` | amortecimento |
+| `only_top_rule` / `both_sides_rule` | regras de desenho |
+| `f_offset_x` / `f_offset_y` | deslocamento de rótulo |
+| `pos_l_<n>` / `pos_r_<n>` | posição de sensor de fim de curso |
+| `sig_color` | cor do sinal |
+| `PISTON_COUNT`, `PISTON_R`, `HUB` | geometria do cilindro |
+
+---
+
+## §3 — Renomear rótulos (operação segura)
+
+Regra de ouro: **o texto novo precisa ter exatamente o mesmo número de bytes**
+que o antigo. Complete com espaços.
+
+```python
+import ctcodec
 n = ctcodec.patch_text(
-    'Projeto.ct', 'Projeto.ct',
-    [('Zylinder, doppeltwirkend', 'Cilindro principal  ')])
-print('substituicoes:', n)
+    'entrada.ct', 'saida.ct',
+    [('Zylinder, doppeltwirkend', 'Cilindro principal     ')])
 ```
 
-> Texto novo maior/menor desloca os índices internos e o desenho corrompe —
-> embora o arquivo ainda abra.
+Verificado: o arquivo abre e o componente continua desenhado corretamente.
+Com tamanho diferente o arquivo ainda abre, mas o desenho pode corromper.
 
 ---
 
-## Passo 4 — Valide antes de entregar
+## §4 — Validar de verdade
 
-```python
-raw = bytes(b ^ 0x9A for b in open('Projeto.ct', 'rb').read())
-toks = ctcodec.stream_info(raw)          # ver §6
-usado = sum(t['size'] for t in toks)
-assert usado == len(raw), 'fluxo nao cobre o arquivo'
-```
+Validação por estrutura **não basta** (um arquivo truncado passa na checagem
+de tokens e abre vazio). A validação confiável é abrir no FluidSIM e olhar a
+janela:
 
-Se der erro, tente a **segunda opção** da tabela do §7.
+| Sinal | Significado |
+|---|---|
+| janela MDI filha com o nome do arquivo | abriu |
+| nenhuma janela filha | abriu vazio — o conteúdo não foi entendido |
+| diálogo "Unerwartetes Dateiformat" / "Unknown file format" | rejeitado |
 
-Validação ideal: abrir no FluidSIM e conferir o título da janela. Se a janela
-mostrar `FluidSIM` (sem o nome do arquivo), houve `Unknown file format`.
-
----
-
-## Passo 5 — Como colocar um pistão (explicação para o usuário)
-
-No FluidSIM, manualmente:
-
-1. **Biblioteca → Hidráulica → Atuadores** → arraste "Cilindro de dupla ação".
-2. Botão direito no cilindro → **Propriedades**:
-
-   | Campo | Significado |
-   |---|---|
-   | `x_pos` / `y_pos` | posição na folha |
-   | `stroke` | curso em mm (padrão 200) |
-   | `length` | comprimento desenhado |
-   | `MASS` | massa da carga (kg) |
-   | `DAMPING_ADJ_L` | amortecimento |
-
-3. **Biblioteca → Válvulas → Válvula direcional** → conecte A/B ao cilindro e
-   P/T à bomba e ao tanque.
-
-No arquivo `.ct`, cada item vira propriedade textual:
-
-```
- F x_pos I 120
- F y_pos I 240
- F stroke I 200
- F MASS I 9
- S sig_color I 65535
-```
+No Windows, o teste automatizado está em §7 (`oracle.ps1`).
 
 ---
 
-## Passo 6 — Como colocar um fim de curso
+## §5 — Por que escrever do zero não funciona
 
-### No FluidSIM (manual)
+### O que sabemos com certeza
 
-1. Abra o circuito que já tem o cilindro.
-2. **Biblioteca → Elétrica → Chaves → Sensor de proximidade**
-   (*Näherungsschalter*).
-3. Arraste o sensor **até a haste** do cilindro — ele encaixa e passa a
-   detectar a posição.
-4. Ligue o contato **13/14** na bobina do relé ou na entrada da lógica.
-5. Para o segundo fim de curso, repita na outra extremidade.
+* Todo o arquivo passa por `XOR 0x9A` (função em `0x41AEC0`, chave em
+  `0x5c544c`).
+* Depois disso é um fluxo LZ77 **sem cabeçalho**: o stream começa no byte 0.
+  Prova: zerar os primeiros 3 bytes já produz "formato inesperado"; manter
+  intactos os primeiros 3 e bagunçar o resto também.
+* Gramática dos tokens (confirmada: o parser consome 100% dos bytes em todos
+  os 201 arquivos testados):
 
-O FluidSIM posiciona o sensor em `pos_l_` (esquerda) ou `pos_r_` (direita)
-conforme onde você soltar na haste.
+  ```
+  byte >= 0x80  ->  literal de (b - 0x80) bytes
+  byte <  0x80  ->  código de 16 bits, BIG-ENDIAN
+        comprimento = (code >> SHIFT) + 1
+        offset      = code & (W - 1)
+        comprimento == 1  ->  RLE (valor no byte seguinte, repetições = offset)
+        comprimento == 2  ->  comprimento ESTENDIDO (byte seguinte = tamanho)
+        comprimento >= 3  ->  cópia do ring buffer
+  ```
 
-### No arquivo `.ct`
+  Modo B (padrão): `W = 2048`, `SHIFT = 11`. Modo A: `W = 512`, `SHIFT = 9`.
+  O buffer é alocado com `0x7FF8` bytes; o índice de escrita avança e sofre
+  *flush* quando `lp + len >= 0x7FF8`.
 
-O sensor aparece como símbolo da biblioteca elétrica
-(`sym/electr/switch/Proximit/px1..px4.ct`) e gera estas propriedades:
+### O que ainda não sabemos
 
-```
- S ProximitySwitch B F
- F pos_l_<n> I <coordenada>
- F pos_r_<n> I <coordenada>
-```
+O decodificador reconstrói **quase tudo** (cabeçalhos de seção, propriedades,
+descrições, coordenadas) mas **não byte a byte**: sobram trechos onde o ring
+reciclado produz lixo. Consequência prática:
 
-Na escada elétrica aparece como contato `IS1` / `IS2` nos bornes 13/14.
+| Tentativa | Resultado |
+|---|---|
+| copiar um `.ct` real | abre |
+| renomear rótulo (mesmo tamanho) | abre |
+| decodificar + reencodar só com literais | abre **vazio** |
+| montar o texto do zero | abre **vazio** ou é rejeitado |
 
-### Adicionar a um circuito que não tem
+Ou seja: o FluidSIM **aceita** um arquivo só com literais (a camada de
+container está correta), mas o **conteúdo** precisa estar íntegro — e o nosso
+decodificador não recupera o conteúdo com fidelidade total.
 
-**Não é suportado nesta versão.** Escolha uma base que já possua a quantidade
-desejada — ver as bases com `fim_de_curso` no §7.
+### O caminho para fechar isso
 
----
-
-## Passo 7 — Catálogo de bases
-
-Caminhos relativos a `D:\Hydraulic\`. Todas as 201 bases foram validadas
-abrindo no FluidSIM.
-
-| Base | Componentes | Observação |
-|---|---|---|
-| `ct/Grafcet/Grafcet05.ct` | grafcet | grafcet básico |
-| `ct/Grafcet18.ct` | cilindro, valvula_dir, fim_de_curso, grafcet | verificado — GRAFCET + cilindro + fim de curso |
-| `ct/Shows/dida_037.ct` | cilindro, valvula_dir, bomba, reservatorio | pistão + unidade completa |
-| `ct/Shows/dida_042.ct` | cilindro, valvula_dir, bomba, filtro | pistão + bomba + filtro |
-| `ct/Shows/dida_070.ct` | motor, valvula_dir, valvula_ret | motor + retenção |
-| `ct/Shows/dida_173d.ct` | cilindro, valvula_dir, fim_de_curso, bomba, valvula_ret, valvula_press | verificado — 2 cilindros + fim de curso + pressão |
-| `ct/demo_02.ct` | cilindro, valvula_dir, reservatorio | pistão básico |
-| `ct/demo_03.ct` | cilindro, valvula_dir, bomba, reservatorio | pistão + bomba + válvula 4/3 |
-| `ct/elect_02.ct` | cilindro, valvula_dir, solenoide, reservatorio | elétrico básico |
-| `ct/tp501/TP501_20.ct` | cilindro, valvula_dir, fim_de_curso, bomba, valvula_ret | cilindro + fim de curso + bomba |
-| `ct/tp502/TP502_01.ct` | motor, valvula_dir, bomba | motor + válvula |
-| `ct/tp502/TP502_05a.ct` | cilindro, valvula_dir, estrangul | controle de velocidade |
-| `ct/tp502/TP502_10.ct` | cilindro, valvula_dir, bomba, reservatorio | dois cilindros + diagrama |
-| `ct/tp601/TP601_01b.ct` | cilindro, valvula_dir, solenoide, botoeira | solenoide + botoeira |
-| `ct/tp601/TP601_08b.ct` | cilindro, valvula_dir, solenoide, bomba | verificado — eletrohidráulico completo |
-| `ct/tp601/TP601_11b.ct` | cilindro, valvula_dir, fim_de_curso, solenoide, bomba | verificado — 1 cilindro + 2 fins de curso + escada |
-| `ct/tp602/TP602_01.ct` | cilindro, valvula_dir, fim_de_curso, reservatorio, lampada | cilindro + fim de curso + lâmpada |
-| `ct/tp602/TP602_06.ct` | cilindro, valvula_dir, fim_de_curso, bomba, reservatorio, valvula_press, lampada | completo + sinaleiro |
-| `ct/tp701/TP701_09.ct` | cilindro, valvula_dir, fim_de_curso, filtro | cilindro + fim de curso + filtro |
-
-Existem 182 bases adicionais em `D:\Hydraulic\ct\`. Para descobrir o que cada
-uma tem, rode o script do §6 (`describe`).
+1. **Depuração dinâmica** — executar `fl_sim_h.exe` sob depurador, colocar
+   breakpoint em `0x41B8FD` (logo após a descompressão) e despejar o buffer
+   `[0x5d1db0]`. Isso dá o plaintext exato, sem dedução.
+2. **Reimplementar o compressor** (`0x41A600` / `0x41A4E0`) e validar
+   round-trip byte a byte com esse plaintext.
+3. Só então será possível desenhar circuitos novos.
 
 ---
 
-## §6 — Implementação de referência do codec
+## §6 — Codec de referência
 
-Copie este arquivo como `ctcodec.py` ao lado do seu script. Sem dependências.
+Dependência zero. Copie como `ctcodec.py`.
 
 ```python
 #!/usr/bin/env python3
-"""Codec dos arquivos .ct do FluidSIM 4.
-
-Formato:
-  * todo o arquivo recebe XOR 0x9A
-  * depois disso e um fluxo LZ77:
-      byte >= 0x80 -> literal: comprimento = b - 0x80, seguido dos bytes
-      byte <  0x80 -> codigo de 16 bits (big-endian):
-            comprimento = (code >> SHIFT) + 1
-            offset      = code & (W - 1)
-            comprimento == 1 -> RLE (valor no byte seguinte; repeticoes = offset)
-            comprimento == 2 -> COMPRIMENTO ESTENDIDO (byte seguinte = tamanho)
-
-  Modo B (padrao): W = 2048, SHIFT = 11
-  Modo A:          W = 512,  SHIFT = 9
-
-Nao existe cabecalho: o fluxo comeca no byte 0.
-"""
+"""Codec dos arquivos .ct do FluidSIM 4."""
 KEY = 0x9A
 
 
@@ -376,168 +297,130 @@ def describe(path):
 
 ---
 
-## §7 — Formato binário completo
+## §7 — Oráculo de validação (Windows)
 
-Para quem precisar reimplementar tudo.
+`oracle.ps1` — retorna `ABRIU`, `VAZIO` ou `ERRO`.
 
-### Camada 1: ofuscação
+```powershell
+param([Parameter(Mandatory=$true)][string]$CtPath, [int]$WaitMs = 14000)
 
-```python
-plain = bytes(b ^ 0x9A for b in raw)
+$exe = "D:\Hydraulic\bin\fl_sim_h.exe"
+$abs = (Resolve-Path $CtPath).Path
+$name = [System.IO.Path]::GetFileName($abs)
+
+Add-Type @"
+using System;
+using System.Text;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+public class WDet {
+  [DllImport("user32.dll")] static extern bool EnumWindows(Cb cb, IntPtr l);
+  [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr p, Cb cb, IntPtr l);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetWindowTextW(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  public delegate bool Cb(IntPtr h, IntPtr l);
+  public static List<string> Docs(uint pid) {
+    var acc = new List<string>();
+    EnumWindows(delegate(IntPtr h, IntPtr l) {
+      uint wp; GetWindowThreadProcessId(h, out wp);
+      if (wp != pid) return true;
+      EnumChildWindows(h, delegate(IntPtr ch, IntPtr cl) {
+        var t = new StringBuilder(1024); GetWindowTextW(ch, t, t.Capacity);
+        if (t.Length > 0) acc.Add(t.ToString());
+        return true;
+      }, IntPtr.Zero);
+      return true;
+    }, IntPtr.Zero);
+    return acc;
+  }
+}
+"@
+
+$p = Start-Process -FilePath $exe -ArgumentList "`"$abs`"" -PassThru
+$verdict = "VAZIO"
+$deadline = (Get-Date).AddMilliseconds($WaitMs)
+while ((Get-Date) -lt $deadline) {
+    Start-Sleep -Milliseconds 600
+    $p.Refresh()
+    if ($p.HasExited) { $verdict = "ERRO"; break }
+    $docs = [WDet]::Docs([uint32]$p.Id)
+    $joined = ($docs -join ' | ')
+    if ($joined -match 'Unerwartetes Dateiformat|Unknown file format') { $verdict = "ERRO"; break }
+    if ($docs | Where-Object { $_ -like "*$name*" }) { $verdict = "ABRIU"; break }
+}
+if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+Write-Output $verdict
 ```
 
-### Camada 2: tokens
-
-| Primeiro byte | Significado |
-|---|---|
-| `>= 0x80` | literal de `b - 0x80` bytes |
-| `< 0x80` | código de 16 bits, **big-endian** |
-
-Do código de 16 bits:
-
-```
-code       = (b0 << 8) | b1
-comprimento = (code >> SHIFT) + 1
-offset      = code & (W - 1)
-```
-
-| Comprimento | Token | Bytes |
-|---|---|---|
-| `1` | RLE (`valor` no byte seguinte, repetições = `offset`) | 3 |
-| `2` | comprimento estendido (tamanho real no byte seguinte) | 3 |
-| `>= 3` | cópia do ring buffer | 2 |
-
-> O caso `2` é a pegadinha: **não** é cópia de 2 bytes. Ignorar isso
-> dessincroniza o parser e "perde" o final do arquivo.
-
-### Camada 3: estrutura do documento
-
-```
-ENDPREVIEW
-BEGIN_FS          <- esquema hidráulico
-  GRAPHRECT O0 ...
-  S <prop> <tipo> <valor>
-  F <prop> <tipo> <valor>
-  D <valor>
-END_FS
-ENDCT
-BEGINDSD          <- escada elétrica / GRAFCET
-  DG ...
-  SYM ...
-ENDDSD
-```
-
-Formatos de linha:
-
-```
-" F %s x_pos I %ld"       " F %s y_pos I %ld"
-" F %s stroke I %ld"      " F %s length I %ld"
-" F %s f_offset_x I %ld"  " F %s f_offset_y I %ld"
-" F %s only_top_rule B %s" " F %s both_sides_rule B %s"
-" S %s B F", " D %ld"
-"DG %ld %ld %s ..."       "POS %04ld %04ld %lf 1"
-"PID %s", "CREATOR %s"
-"DSD %ld", "BEGINDSD", "ENDDSD"
-```
-
-### Biblioteca de símbolos
-
-`D:\Hydraulic\sym\<categoria>\<sub>\*.ct`, com `pos.txt` por pasta.
-
-Categorias principais:
-
-```
-sym/hyd/actuator/     cilindros (a1 = dupla ação)
-sym/hyd/valve/        válvulas
-sym/hyd/supply/       bomba, tanque, filtro, acumulador
-sym/hyd/sensor/       manômetro, pressostato
-sym/electr/switch/    chaves (Manually, Proximit, General)
-sym/electr/relay/     relés
-sym/electr/sensor/    sensores elétricos
-sym/electr/ladder/    contatos de escada
-sym/grafcet/          step, transition, action, sub, sync
-```
+**Importante:** `ABRIU` sozinho não prova conteúdo correto — confirme com
+captura de tela. Um documento vazio também "abre".
 
 ---
 
-## §8 — Limites e por quê
-
-O `.ct` é LZ77 sem cabeçalho, multi-bloco. Escrever do zero exigiria
-reimplementar o compressor (`0x41A600` / `0x41A4E0` em `fl_sim_h.exe`) com
-sincronização perfeita do ring buffer em cada *flush* de bloco.
-
-Tentativas de regravar o texto completo produzem `Unknown file format` porque
-parte do conteúdo mora nos tokens de cópia (não nos literais).
-
-**Caminho para fechar a lacuna** (trabalho futuro):
-
-1. Depuração dinâmica: breakpoint em `0x41B8FD`, despejar `[0x5d1db0]`.
-2. Reimplementar o compressor e validar round-trip byte a byte.
-3. Automatizar a UI do FluidSIM (colar símbolos e salvar).
-
-Mapa de endereços úteis:
+## §8 — Mapa do executável
 
 | Endereço | Papel |
 |---|---|
 | `0x41AEC0` | aplica/remove XOR |
 | `0x41A600` | compressor |
 | `0x41A4E0` | busca de match LZ |
+| `0x41AF80` | descompressor |
 | `0x41B3A8` | laço do descompressor |
 | `0x41B5F7` | leitura do código de 16 bits |
-| `0x41B740` | tratamento de `length == 1` |
+| `0x41B740` | ramo `length == 1` (RLE) |
 | `0x41B786` | cópia ring → saída |
 | `0x41B83D` | flush final |
+| `0x4C8450` | wrapper de descompressão |
 
 | Global | Nome |
 |---|---|
 | `0x5c544c` | chave XOR (0x9A) |
+| `0x5c5450` | modo (0 = B/2048, ≠0 = A/512) |
 | `0x5c5454` | `W` |
+| `0x5c5456` | `MAXLEN` (64 no A, 16 no B) |
 | `0x5c5458` | `SHIFT` |
-| `0x5d1d98` | ring buffer |
-| `0x5d1db0` | saída |
+| `0x5d1d94` | buffer de entrada |
+| `0x5d1d98` | ring buffer (`0x7FF8` bytes) |
+| `0x5d1d9c` | `lp` (posição de escrita) |
+| `0x5d1db0` | buffer de saída |
+
+Biblioteca de símbolos: `sym/hyd/actuator/a1.ct` é o cilindro de dupla ação;
+`sym/electr/switch/Proximit/px1..px4.ct` são os sensores de proximidade usados
+como fim de curso.
 
 ---
 
-## §9 — Frases para ativar a skill
+## §9 — Frases que ativam esta skill
 
-Basta pedir em linguagem natural. Exemplos que funcionam:
+**Análise**
+- "Inspecione este `.ct` e liste os componentes."
+- "Quais propriedades tem o cilindro deste circuito?"
+- "Extraia os textos legíveis deste arquivo."
 
-### Criar
+**Edição segura**
+- "Renomeie o cilindro para 'Atuador de prensa' mantendo o arquivo válido."
+- "Troque a descrição do componente por 'Cilindro hidráulico'."
 
-- "Crie um circuito hidráulico com cilindro de dupla ação, válvula direcional
-  e bomba."
-- "Monte um projeto com pistão, filtro, válvula de retenção e pressão."
-- "Preciso de um circuito com dois cilindros em sequência."
-- "Faça um eletrohidráulico: cilindro com solenoide e botoeiras."
-- "Gere um projeto com cilindro e fim de curso."
+**Diagnóstico**
+- "Por que o FluidSIM diz 'formato inesperado' neste arquivo?"
+- "Valide este `.ct` e me diga se abre com conteúdo."
 
-### Ajustar
-
-- "Use o circuito X como base e renomeie os componentes para português."
-- "Troque o nome do cilindro para 'Atuador de prensa'."
-- "Quero a versão com manômetro em vez de pressostato."
-
-### Verificar
-
-- "Valide o arquivo e me diga se abre."
-- "Liste os componentes do arquivo gerado."
-
-### Analisar
-
-- "Quais circuitos do catálogo têm cilindro e fim de curso?"
-- "Mostre os 5 mais parecidos com 'pistão com motor'."
+**Expectativa (responder com honestidade)**
+- "Crie um circuito novo do zero" → explicar §5, oferecer editar um existente.
+- "Adicione um fim de curso a este circuito" → explicar que inserir
+  componente não é suportado; sugerir editar em um que já tenha.
 
 ---
 
-## §10 — Checklist de entrega
+## §10 — Checklist
 
-- [ ] pedido traduzido em componentes
-- [ ] base escolhida e justificada
-- [ ] `.ct` gerado na pasta do usuário
-- [ ] validação de estrutura passou
-- [ ] resumo do que o circuito tem
-- [ ] o que **não** foi incluído
-- [ ] instrução: **duplo clique no `.ct`**
+- [ ] o pedido é análise/edição (possível) ou criação do zero (não possível)?
+- [ ] se criação: explique o limite antes de gerar qualquer arquivo
+- [ ] se edição: mesmo comprimento nos rótulos
+- [ ] validar com `oracle.ps1`
+- [ ] confirmar visualmente (documento vazio ≠ sucesso)
+- [ ] relatar o que foi feito e o que ficou de fora
 
 ---
 
