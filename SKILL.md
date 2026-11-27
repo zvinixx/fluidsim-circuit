@@ -140,3 +140,68 @@ Validação ideal: abrir no FluidSIM e conferir o título da janela. Se a janela
 mostrar `FluidSIM` (sem o nome do arquivo), houve `Unknown file format`.
 
 ---
+
+## Passo 5 — Como colocar um pistão (explicação para o usuário)
+
+No FluidSIM, manualmente:
+
+1. **Biblioteca → Hidráulica → Atuadores** → arraste "Cilindro de dupla ação".
+2. Botão direito no cilindro → **Propriedades**:
+
+   | Campo | Significado |
+   |---|---|
+   | `x_pos` / `y_pos` | posição na folha |
+   | `stroke` | curso em mm (padrão 200) |
+   | `length` | comprimento desenhado |
+   | `MASS` | massa da carga (kg) |
+   | `DAMPING_ADJ_L` | amortecimento |
+
+3. **Biblioteca → Válvulas → Válvula direcional** → conecte A/B ao cilindro e
+   P/T à bomba e ao tanque.
+
+No arquivo `.ct`, cada item vira propriedade textual:
+
+```
+ F x_pos I 120
+ F y_pos I 240
+ F stroke I 200
+ F MASS I 9
+ S sig_color I 65535
+```
+
+---
+
+## Passo 6 — Como colocar um fim de curso
+
+### No FluidSIM (manual)
+
+1. Abra o circuito que já tem o cilindro.
+2. **Biblioteca → Elétrica → Chaves → Sensor de proximidade**
+   (*Näherungsschalter*).
+3. Arraste o sensor **até a haste** do cilindro — ele encaixa e passa a
+   detectar a posição.
+4. Ligue o contato **13/14** na bobina do relé ou na entrada da lógica.
+5. Para o segundo fim de curso, repita na outra extremidade.
+
+O FluidSIM posiciona o sensor em `pos_l_` (esquerda) ou `pos_r_` (direita)
+conforme onde você soltar na haste.
+
+### No arquivo `.ct`
+
+O sensor aparece como símbolo da biblioteca elétrica
+(`sym/electr/switch/Proximit/px1..px4.ct`) e gera estas propriedades:
+
+```
+ S ProximitySwitch B F
+ F pos_l_<n> I <coordenada>
+ F pos_r_<n> I <coordenada>
+```
+
+Na escada elétrica aparece como contato `IS1` / `IS2` nos bornes 13/14.
+
+### Adicionar a um circuito que não tem
+
+**Não é suportado nesta versão.** Escolha uma base que já possua a quantidade
+desejada — ver as bases com `fim_de_curso` no §7.
+
+---
