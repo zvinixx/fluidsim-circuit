@@ -205,3 +205,35 @@ Na escada elétrica aparece como contato `IS1` / `IS2` nos bornes 13/14.
 desejada — ver as bases com `fim_de_curso` no §7.
 
 ---
+
+## Passo 7 — Catálogo de bases
+
+Caminhos relativos a `D:\Hydraulic\`. Todas as 201 bases foram validadas
+abrindo no FluidSIM.
+
+| Base | Componentes | Observação |
+|---|---|---|
+| `ct/Grafcet/Grafcet05.ct` | grafcet | grafcet básico |
+| `ct/Grafcet18.ct` | cilindro, valvula_dir, fim_de_curso, grafcet | verificado — GRAFCET + cilindro + fim de curso |
+| `ct/Shows/dida_037.ct` | cilindro, valvula_dir, bomba, reservatorio | pistão + unidade completa |
+| `ct/Shows/dida_042.ct` | cilindro, valvula_dir, bomba, filtro | pistão + bomba + filtro |
+| `ct/Shows/dida_070.ct` | motor, valvula_dir, valvula_ret | motor + retenção |
+| `ct/Shows/dida_173d.ct` | cilindro, valvula_dir, fim_de_curso, bomba, valvula_ret, valvula_press | verificado — 2 cilindros + fim de curso + pressão |
+| `ct/demo_02.ct` | cilindro, valvula_dir, reservatorio | pistão básico |
+| `ct/demo_03.ct` | cilindro, valvula_dir, bomba, reservatorio | pistão + bomba + válvula 4/3 |
+| `ct/elect_02.ct` | cilindro, valvula_dir, solenoide, reservatorio | elétrico básico |
+| `ct/tp501/TP501_20.ct` | cilindro, valvula_dir, fim_de_curso, bomba, valvula_ret | cilindro + fim de curso + bomba |
+| `ct/tp502/TP502_01.ct` | motor, valvula_dir, bomba | motor + válvula |
+| `ct/tp502/TP502_05a.ct` | cilindro, valvula_dir, estrangul | controle de velocidade |
+| `ct/tp502/TP502_10.ct` | cilindro, valvula_dir, bomba, reservatorio | dois cilindros + diagrama |
+| `ct/tp601/TP601_01b.ct` | cilindro, valvula_dir, solenoide, botoeira | solenoide + botoeira |
+| `ct/tp601/TP601_08b.ct` | cilindro, valvula_dir, solenoide, bomba | verificado — eletrohidráulico completo |
+| `ct/tp601/TP601_11b.ct` | cilindro, valvula_dir, fim_de_curso, solenoide, bomba | verificado — 1 cilindro + 2 fins de curso + escada |
+| `ct/tp602/TP602_01.ct` | cilindro, valvula_dir, fim_de_curso, reservatorio, lampada | cilindro + fim de curso + lâmpada |
+| `ct/tp602/TP602_06.ct` | cilindro, valvula_dir, fim_de_curso, bomba, reservatorio, valvula_press, lampada | completo + sinaleiro |
+| `ct/tp701/TP701_09.ct` | cilindro, valvula_dir, fim_de_curso, filtro | cilindro + fim de curso + filtro |
+
+Existem 182 bases adicionais em `D:\Hydraulic\ct\`. Para descobrir o que cada
+uma tem, rode o script do §6 (`describe`).
+
+---
