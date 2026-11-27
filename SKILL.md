@@ -1,11 +1,11 @@
 ---
 name: fluidsim-circuit
-description: "Cria e edita projetos de circuito hidráulico e eletrohidráulico do FluidSIM 4 (Festo) gerando o arquivo .ct pronto para abrir com duplo clique, sem precisar abrir o programa. Use quando o pedido mencionar 'circuito FluidSIM', 'arquivo .ct', 'projeto de hidráulica', 'montar um pistão', 'cilindro com válvula direcional', 'fim de curso', 'sensor de posição no cilindro', 'circuito eletrohidráulico com solenoide', 'GRAFCET', 'editar um .ct' ou 'renomear componentes do circuito'."
+description: "Builds FluidSIM 4 (Festo) hydraulic and electro-hydraulic circuit projects and delivers a ready-to-open .ct file, without launching the application. Use when the request mentions 'FluidSIM circuit', '.ct file', 'hydraulic project', 'build a piston', 'cylinder with directional valve', 'limit switch', 'position sensor on a cylinder', 'electro-hydraulic circuit with solenoid', 'GRAFCET', 'edit a .ct' or 'rename circuit components'."
 license: MIT
 metadata:
   author: zvinixx
   version: "1.0.0"
-  fluid_sim: "4.x Hidráulica"
+  fluid_sim: "4.x Hydraulics"
 ---
 
 # Skill: circuitos FluidSIM `.ct`
